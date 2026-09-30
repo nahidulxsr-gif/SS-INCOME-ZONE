@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SS INCOME ZONE</title>
+    
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --brand-pink: #e2136e;
+            --brand-dark: #9e0847;
+            --brand-light: #fde8f1;
+            --glass-bg: rgba(255, 255, 255, 0.96);
+        }
+        body {
+            font-family: 'Hind Siliguri', 'Inter', sans-serif;
+            background: linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%);
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            color: #1e293b;
+            overflow: hidden;
+        }
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 10px 25px -5px rgba(226, 19, 110, 0.07);
+        }
+        .gradient-card {
+            background: linear-gradient(135deg, #e2136e 0%, #b30f55 100%);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 25px -5px rgba(226, 19, 110, 0.35);
+        }
+        .gradient-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.25), transparent);
+            transform: skewX(-25deg);
+            animation: shimmer 3.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { left: -100%; }
+            50%, 100% { left: 200%; }
+        }
+        .btn-press:active { transform: scale(0.96); }
+        .nav-item.active { color: #e2136e; }
+        .nav-item.active .nav-icon { background-color: #fde8f1; transform: translateY(-3px); color: #e2136e; }
+        .gateway-card.selected {
+            border-color: #e2136e;
+            background-color: #fde8f1;
+            box-shadow: 0 0 0 2px rgba(226, 19, 110, 0.3);
+        }
+        ::-webkit-scrollbar { width: 0px; }
+    </style>
+</head>
+<body class="h-screen flex justify-center">
+
+    <!-- Global Loader -->
+    <div id="global-loader" class="fixed inset-0 z-50 bg-white/95 backdrop-blur-xl flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="w-20 h-20 rounded-2xl p-1 bg-gradient-to-tr from-pink-500 to-[#e2136e] shadow-xl shadow-pink-500/20 animate-bounce mb-4 flex items-center justify-center text-white text-3xl">
+            <i class="fa-solid fa-bolt"></i>
+        </div>
+        <h2 class="text-slate-800 font-black text-xl tracking-wide font-inter">SS INCOME ZONE</h2>
+        <p class="text-[#e2136e] text-xs mt-2 font-bold animate-pulse">ডাটা ভেরিফাই ও লোড হচ্ছে...</p>
+    </div>
+
+    <!-- Error/Notice Screen for invalid environment -->
+    <div id="auth-error-screen" class="fixed inset-0 z-50 bg-[#fffbfd] flex-col items-center justify-center p-6 text-center hidden">
+        <div class="w-16 h-16 bg-pink-100 text-[#e2136e] rounded-full flex items-center justify-center text-3xl mb-4 shadow-inner">
+            <i class="fa-solid fa-lock"></i>
+        </div>
+        <h2 class="font-extrabold text-slate-800 text-lg mb-2">টেলিগ্রাম অ্যাপ দিয়ে ওপেন করুন</h2>
+        <p class="text-xs text-slate-500 leading-relaxed max-w-xs mb-5">
+            নিরাপত্তার স্বার্থে এই অ্যাপটি শুধুমাত্র টেলিগ্রাম অফিসিয়াল অ্যাপ্লিকেশনের ভেতরে অ্যাক্সেসযোগ্য।
+        </p>
+        <button onclick="retryAuth()" class="bg-[#e2136e] text-white text-xs font-bold px-6 py-3 rounded-xl shadow btn-press flex items-center gap-2">
+            <i class="fa-solid fa-rotate-right"></i> পুনরায় চেষ্টা করুন
+        </button>
+    </div>
+
+    <!-- Dynamic Popup Notice Modal -->
+    <div id="notice-modal" class="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden px-5">
+        <div class="bg-white rounded-[2rem] max-w-sm w-full p-6 shadow-2xl border border-pink-100 animate-[bounce_0.5s_ease-in-out]">
+            <div class="text-center mb-4">
+                <div class="w-12 h-12 bg-pink-50 text-[#e2136e] rounded-full flex items-center justify-center mx-auto mb-2 text-xl shadow-inner">
+                    <i class="fa-solid fa-bullhorn"></i>
+                </div>
+                <h3 id="popup-notice-title" class="text-base font-extrabold text-slate-800">জরুরী নোটিশ</h3>
+            </div>
+            <p id="popup-notice-body" class="text-slate-600 text-xs text-center leading-relaxed mb-5 font-medium max-h-48 overflow-y-auto">
+                তথ্য লোড হচ্ছে...
+            </p>
+            <div class="space-y-2">
+                <a id="popup-notice-video-btn" href="#" target="_blank" class="w-full bg-rose-50 text-rose-600 border border-rose-200 font-bold py-3 rounded-xl btn-press text-xs flex items-center justify-center gap-2 hidden">
+                    <i class="fa-brands fa-youtube text-base"></i> ভিডিও গাইড দেখুন
+                </a>
+                <button onclick="closeNoticeModal()" class="w-full bg-[#e2136e] text-white font-bold py-3 rounded-xl btn-press shadow-md text-xs">
+                    পড়েছি, ধন্যবাদ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Mobile Container -->
+    <div class="w-full max-w-md h-full bg-[#fffbfd] relative shadow-2xl flex flex-col hidden" id="app-container">
+        
+        <!-- Header -->
+        <div class="glass px-5 py-3.5 flex items-center justify-between z-20 absolute top-0 w-full rounded-b-3xl border-b border-pink-100/60 shadow-sm">
+            <div class="flex items-center gap-3">
+                <img id="user-avatar" src="https://placehold.co/100" class="w-10 h-10 rounded-full object-cover border-2 border-[#e2136e]">
+                <div>
+                    <h1 class="font-bold text-slate-800 text-sm" id="header-username">ব্যবহারকারী</h1>
+                    <p class="text-[12px] text-[#e2136e] font-black font-inter">৳ <span id="header-balance">0.00</span></p>
+                </div>
+            </div>
+            <span class="text-[10px] bg-pink-50 text-[#e2136e] border border-pink-200 px-3 py-1 rounded-full font-bold">
+                SS INCOME ZONE
+            </span>
+        </div>
+
+        <!-- Scrollable Body -->
+        <div class="flex-1 overflow-y-auto pt-20 pb-24 scroll-smooth" id="main-content">
+            
+            <!-- 1. HOME VIEW -->
+            <div id="view-home" class="p-5 space-y-4">
+                <!-- User Balance Card -->
+                <div class="gradient-card rounded-3xl p-5 text-white">
+                    <div class="flex justify-between items-center mb-1">
+                        <p class="text-[11px] font-semibold text-pink-100 uppercase tracking-wider">বর্তমান ওয়ালেট ব্যালেন্স</p>
+                        <i class="fa-solid fa-wallet text-white/50 text-sm"></i>
+                    </div>
+                    <h1 class="text-3xl font-black mb-4 font-inter">৳ <span id="home-balance">0.00</span></h1>
+                    <div class="flex gap-2">
+                        <button onclick="switchTab('tasks')" class="flex-1 bg-white text-[#e2136e] py-2.5 rounded-xl font-bold text-xs shadow btn-press flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-play"></i> কাজ করুন
+                        </button>
+                        <button onclick="switchTab('wallet')" class="flex-1 bg-black/20 text-white border border-white/30 py-2.5 rounded-xl font-bold text-xs btn-press flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-money-bill-transfer"></i> উত্তোলন
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Admin Embedded YouTube Video Section -->
+                <div id="guide-video-wrapper" class="glass rounded-3xl p-4 border border-pink-100 shadow-sm space-y-2">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i class="fa-brands fa-youtube text-rose-600 text-lg"></i>
+                        <h3 class="font-bold text-xs text-slate-800">কাজের সম্পূর্ণ ভিডিও নিয়ম</h3>
+                    </div>
+                    <div class="w-full aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-inner">
+                        <iframe id="guide-video-frame" class="w-full h-full" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+                </div>
+
+                <!-- Admin Controlled Rules Card -->
+                <div class="glass rounded-3xl p-4 border border-pink-100 shadow-sm space-y-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-[#e2136e] text-sm"></i>
+                        <h3 class="font-bold text-xs text-slate-800">নিয়মাবলী ও নির্দেশিকা</h3>
+                    </div>
+                    <div id="admin-rules-content" class="text-[11px] text-slate-600 leading-relaxed font-medium space-y-1.5 bg-pink-50/40 p-3 rounded-xl border border-pink-100/50">
+                        <!-- Loaded dynamically from Firebase -->
+                    </div>
+                </div>
+
+                <!-- Referral Section -->
+                <div class="glass rounded-3xl p-4 border border-pink-100 shadow-sm space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-xs text-slate-800">বন্ধুদের রেফার করুন</h3>
+                            <p class="text-[10px] text-slate-500">প্রতি সফল রেফারে বোনাস ৳ <span id="ref-bonus-display" class="font-bold text-[#e2136e]">0</span></p>
+                        </div>
+                        <div class="w-8 h-8 rounded-full bg-pink-50 text-[#e2136e] flex items-center justify-center text-xs font-bold font-inter" id="stat-referrals">0</div>
+                    </div>
+                    <div class="bg-slate-50 p-1.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                        <p class="text-[10px] text-slate-500 truncate flex-1 font-inter pl-2" id="home-ref-link">লোড হচ্ছে...</p>
+                        <button onclick="copyRefLink()" class="bg-[#e2136e] text-white text-[10px] px-3.5 py-2 rounded-lg font-bold btn-press shadow">কপি লিংক</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. TASKS / ADS VIEW -->
+            <div id="view-tasks" class="p-5 space-y-5 hidden">
+                <div class="text-center">
+                    <h2 class="text-xl font-black text-slate-800">টাস্ক ও অ্যাড জোন</h2>
+                    <p class="text-[11px] text-slate-500">বিজ্ঞাপন দেখে এবং সাধারণ টাস্ক করে নিশ্চিত আয় করুন</p>
+                </div>
+
+                <!-- 15s Secure Ad Box -->
+                <div class="glass rounded-3xl p-5 border-l-4 border-l-[#e2136e] shadow-sm">
+                    <div class="flex justify-between items-center mb-3">
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">আজকের অ্যাড সম্পন্ন</p>
+                            <h3 class="text-2xl font-black text-slate-800 font-inter"><span id="ads-done-count">0</span><span class="text-slate-300 text-lg">/<span id="ads-limit-count">50</span></span></h3>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] bg-pink-50 text-[#e2136e] font-bold px-2.5 py-1 rounded-full border border-pink-100 font-inter">+৳ <span id="ad-single-reward">0.50</span></span>
+                        </div>
+                    </div>
+                    
+                    <button id="watch-ad-btn" onclick="startSecureAdWatch()" class="w-full bg-slate-900 text-white p-3.5 rounded-2xl shadow btn-press flex items-center justify-between border border-slate-700">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-pink-600 text-white flex items-center justify-center text-sm"><i class="fa-solid fa-play"></i></div>
+                            <span class="font-bold text-xs">ভিডিও অ্যাড দেখুন (১৫ সেকেন্ড)</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-slate-400 text-xs"></i>
+                    </button>
+                    <p class="text-[10px] text-amber-700 mt-2 font-medium"><i class="fa-solid fa-triangle-exclamation"></i> ১৫ সেকেন্ড অপেক্ষা শেষ না হওয়া পর্যন্ত অ্যাপ কাটবেন না।</p>
+                </div>
+
+                <!-- Dynamic Tasks Container -->
+                <div>
+                    <h3 class="font-bold text-xs text-slate-700 mb-3">সহজ টাস্কসমূহ</h3>
+                    <div id="dynamic-tasks-container" class="space-y-3">
+                        <p class="text-center text-xs text-slate-400 py-4">টাস্ক লোড হচ্ছে...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. WALLET / WITHDRAW VIEW -->
+            <div id="view-wallet" class="p-5 space-y-4 hidden">
+                <div class="gradient-card rounded-3xl p-5 text-white text-center">
+                    <p class="text-[11px] font-semibold text-pink-100 uppercase tracking-wider mb-0.5">উত্তোলনযোগ্য ব্যালেন্স</p>
+                    <h1 class="text-3xl font-black font-inter">৳ <span id="wallet-balance">0.00</span></h1>
+                </div>
+
+                <div class="glass rounded-3xl p-5 shadow-sm space-y-3.5 border border-pink-100">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-[11px] font-bold text-slate-600 block">পেমেন্ট মেথড সিলেক্ট করুন</label>
+                            <span class="text-[10px] text-pink-600 font-bold bg-pink-50 px-2 py-0.5 rounded-full" id="charge-label">সার্ভিস ফি: ১০%</span>
+                        </div>
+                        
+                        <!-- Real Native Vector bKash & Nagad Gateways -->
+                        <div id="gateways-grid" class="grid grid-cols-2 gap-2.5">
+                            <!-- Injected Dynamically with Pure SVGs -->
+                        </div>
+                        <input type="hidden" id="selected-payment-method" value="বিকাশ">
+                    </div>
+
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 mb-1.5 block">উত্তোলনের পরিমাণ (টাকা)</label>
+                        <input type="number" id="withdraw-amount-input" oninput="calculateWithdrawNet()" placeholder="100" class="w-full bg-white border border-pink-100 rounded-xl py-2.5 px-3 text-xs focus:outline-none focus:border-[#e2136e] font-bold font-inter">
+                        <div class="flex justify-between items-center mt-1 text-[10px]">
+                            <span class="text-slate-400">সর্বনিম্ন: ৳<span id="min-withdraw-label">50</span></span>
+                            <span class="text-[#e2136e] font-bold" id="net-receive-label">আপনি পাবেন: ৳0.00</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 mb-1.5 block" id="account-field-label">বিকাশ পার্সোনাল নাম্বার</label>
+                        <input type="tel" id="withdraw-account-input" placeholder="01XXXXXXXXX" class="w-full bg-white border border-pink-100 rounded-xl py-2.5 px-3 text-xs focus:outline-none focus:border-[#e2136e] font-inter">
+                    </div>
+
+                    <button onclick="submitWithdrawal()" class="w-full bg-[#e2136e] text-white font-bold py-3.5 rounded-xl shadow btn-press text-xs">
+                        উইথড্র রিকোয়েস্ট পাঠান
+                    </button>
+                </div>
+
+                <!-- Recent Withdrawals -->
+                <div>
+                    <h3 class="font-bold text-xs text-slate-700 mb-2">আপনার সাম্প্রতিক উত্তোলন</h3>
+                    <div id="wallet-history-list" class="space-y-2">
+                        <p class="text-center text-xs text-slate-400 py-3">উত্তোলনের কোনো হিস্টোরি পাওয়া যায়নি</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. PROFILE VIEW -->
+            <div id="view-profile" class="p-5 space-y-4 hidden">
+                <div class="glass rounded-3xl p-5 text-center border border-pink-100 shadow-sm">
+                    <img id="profile-img" src="https://placehold.co/100" class="w-20 h-20 rounded-full mx-auto p-1 border-2 border-[#e2136e] object-cover mb-2">
+                    <h2 class="font-black text-base text-slate-800" id="profile-user-name">ব্যবহারকারী</h2>
+                    <p class="text-[10px] text-slate-500 font-inter">User ID: <span id="profile-user-id">...</span></p>
+                </div>
+
+                <!-- Profile Statistics -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="glass p-3.5 rounded-2xl border border-pink-50">
+                        <span class="text-[10px] text-slate-400 font-bold block">সর্বমোট আয়</span>
+                        <h4 class="text-base font-black text-slate-800 font-inter">৳ <span id="stat-total-income">0.00</span></h4>
+                    </div>
+                    <div class="glass p-3.5 rounded-2xl border border-pink-50">
+                        <span class="text-[10px] text-slate-400 font-bold block">মোট রেফারেল</span>
+                        <h4 class="text-base font-black text-slate-800 font-inter"><span id="stat-profile-refs">0</span> জন</h4>
+                    </div>
+                    <div class="glass p-3.5 rounded-2xl border border-pink-50 col-span-2">
+                        <span class="text-[10px] text-slate-400 font-bold block">মোট লাইফটাইম অ্যাড দেখা</span>
+                        <h4 class="text-base font-black text-slate-800 font-inter"><span id="stat-total-ads">0</span> টি</h4>
+                    </div>
+                </div>
+
+                <!-- Help & Support -->
+                <div class="space-y-2">
+                    <a id="profile-support-btn" href="#" target="_blank" class="glass p-3.5 rounded-2xl flex items-center justify-between btn-press">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-pink-50 text-[#e2136e] flex items-center justify-center text-xs"><i class="fa-solid fa-headset"></i></div>
+                            <span class="text-xs font-bold text-slate-700">অফিসিয়াল সাপোর্ট ও হেল্পলাইন</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 4-Tab Bottom Navigation Bar -->
+        <div class="glass absolute bottom-0 w-full h-16 px-6 flex justify-between items-center z-30 rounded-t-3xl border-t border-pink-100/60 shadow-[0_-5px_20px_rgba(226,19,110,0.04)] bg-white/95">
+            <button onclick="switchTab('home')" class="nav-item active flex flex-col items-center gap-1 transition-all" data-target="home">
+                <div class="nav-icon w-8 h-8 rounded-xl flex items-center justify-center transition-all"><i class="fa-solid fa-house text-sm"></i></div>
+                <span class="text-[9px] font-bold">হোম</span>
+            </button>
+            <button onclick="switchTab('tasks')" class="nav-item text-slate-400 flex flex-col items-center gap-1 transition-all" data-target="tasks">
+                <div class="nav-icon w-8 h-8 rounded-xl flex items-center justify-center transition-all"><i class="fa-solid fa-list-check text-sm"></i></div>
+                <span class="text-[9px] font-bold">কাজ</span>
+            </button>
+            <button onclick="switchTab('wallet')" class="nav-item text-slate-400 flex flex-col items-center gap-1 transition-all" data-target="wallet">
+                <div class="nav-icon w-8 h-8 rounded-xl flex items-center justify-center transition-all"><i class="fa-solid fa-wallet text-sm"></i></div>
+                <span class="text-[9px] font-bold">ওয়ালেট</span>
+            </button>
+            <button onclick="switchTab('profile')" class="nav-item text-slate-400 flex flex-col items-center gap-1 transition-all" data-target="profile">
+                <div class="nav-icon w-8 h-8 rounded-xl flex items-center justify-center transition-all"><i class="fa-solid fa-user text-sm"></i></div>
+                <span class="text-[9px] font-bold">প্রোফাইল</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-[-60px] left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-5 py-2.5 rounded-full shadow-2xl transition-all duration-300 z-50 flex items-center gap-2 text-xs border border-slate-700">
+        <i id="toast-icon" class="fa-solid fa-check text-pink-400"></i>
+        <span id="toast-msg">সফল হয়েছে</span>
+    </div>
+
+    <!-- CORE SCRIPT ENGINE -->
+    <script>
+        const BOT_USERNAME = "SSIncomeZoneBot"; // আপনার বটের সঠিক ইউজারনেম
+        const BOT_APP_NAME = "app"; 
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHLiQWuDMOORQewtqhKUJaC8BQlUfKo7I",
+            authDomain: "bdearnings.firebaseapp.com",
+            projectId: "bdearnings",
+            storageBucket: "bdearnings.firebasestorage.app",
+            messagingSenderId: "547328921031",
+            appId: "1:547328921031:web:3aa8fe0ad1250d82fb1de2"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const tg = window.Telegram?.WebApp;
+
+        // ORIGINAL VECTOR SVGS (NO BROKEN EXTERNAL IMAGES)
+        const BKASH_SVG = `<svg class="h-6 w-auto" viewBox="0 0 160 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M72.2 24.8L61.7 42.6H49.1L59.6 24.8H72.2Z" fill="#E2136E"/>
+            <path d="M59.4 6.7L48.9 24.5H36.3L46.8 6.7H59.4Z" fill="#E2136E"/>
+            <path d="M46.7 24.8L36.2 42.6H23.6L34.1 24.8H46.7Z" fill="#E2136E"/>
+            <path d="M33.9 6.7L23.4 24.5H10.8L21.3 6.7H33.9Z" fill="#E2136E"/>
+            <path d="M85.4 12.6C89.5 12.6 92.4 15.3 92.4 19.3C92.4 23.3 89.5 26 85.4 26H79.8V12.6H85.4ZM85.4 7.2H74.2V42.6H79.8V31.3H85.4C92.9 31.3 98.1 26.2 98.1 19.3C98.1 12.3 92.9 7.2 85.4 7.2Z" fill="#E2136E"/>
+            <text x="100" y="32" font-family="'Inter', sans-serif" font-weight="900" font-size="24" fill="#E2136E">bKash</text>
+        </svg>`;
+
+        const NAGAD_SVG = `<svg class="h-6 w-auto" viewBox="0 0 160 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="28" cy="28" r="20" fill="#F7931E"/>
+            <path d="M28 12C20 12 15 20 20 28C24 34 32 30 32 25C32 21 29 19 26 21C24 22 23 24 23 25" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+            <text x="56" y="35" font-family="'Hind Siliguri', sans-serif" font-weight="800" font-size="26" fill="#F7931E">নগদ</text>
+        </svg>`;
+
+        // Global State Controlled via Firebase Admin
+        let appSettings = {
+            botToken: "",
+            adReward: 0.50,
+            dailyAdLimit: 50,
+            referralBonus: 5.00,
+            minWithdraw: 50,
+            withdrawFeePercent: 10,
+            helpLink: "https://t.me/",
+            guideVideoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            howToEarnText: "১. প্রতিদিন অ্যাড দেখে ইনকাম করুন।\n২. সহজ টাস্কগুলো সম্পন্ন করুন।\n৩. বন্ধুদের রেফার করে আনলিমিটেড বোনাস নিন।",
+            adLink: "",
+            monetagZoneId: "10487556" // Admin editable zone ID
+        };
+
+        let activePaymentGateways = [
+            { id: "bkash", name: "বিকাশ", placeholder: "বিকাশ পার্সোনাল নাম্বার", svg: BKASH_SVG },
+            { id: "nagad", name: "নগদ", placeholder: "নগদ পার্সোনাল নাম্বার", svg: NAGAD_SVG }
+        ];
+
+        let tasksList = [];
+        let currentUser = null;
+        let userData = {};
+        
+        let isAdWatching = false;
+        let adWatchTimer = null;
+        let adSecondsLeft = 15;
+        let currentMonetagZone = "";
+
+        // URL parsing helper for YouTube embeds
+        function getEmbedUrl(url) {
+            if(!url) return "";
+            let videoId = "";
+            if(url.includes("youtu.be/")) {
+                videoId = url.split("youtu.be/")[1].split("?")[0];
+            } else if(url.includes("watch?v=")) {
+                videoId = url.split("watch?v=")[1].split("&")[0];
+            } else if(url.includes("embed/")) {
+                return url;
+            }
+            return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+        }
+
+        // ROBUST MULTI-LAYER TELEGRAM AUTH CHECK
+        function extractTelegramUser() {
+            try {
+                // 1. Direct WebApp User
+                if (tg?.initDataUnsafe?.user?.id) {
+                    return tg.initDataUnsafe.user;
+                }
+
+                // 2. Parse from initData
+                if (tg?.initData) {
+                    const params = new URLSearchParams(tg.initData);
+                    const userRaw = params.get('user');
+                    if (userRaw) return JSON.parse(decodeURIComponent(userRaw));
+                }
+
+                // 3. Parse from URL Search and Hash (Web K / Web Z / Android intent caches)
+                const fullUrl = window.location.href;
+                const searchParams = new URLSearchParams(window.location.search);
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                
+                const tgWebAppData = searchParams.get('tgWebAppData') || hashParams.get('tgWebAppData');
+                if (tgWebAppData) {
+                    const parsed = new URLSearchParams(tgWebAppData);
+                    const userRaw = parsed.get('user');
+                    if (userRaw) return JSON.parse(decodeURIComponent(userRaw));
+                }
+
+                // 4. Fallback check for session storage if user previously loaded in this session
+                const cachedUser = sessionStorage.getItem("tg_cached_user");
+                if (cachedUser) return JSON.parse(cachedUser);
+
+            } catch (err) {
+                console.warn("Telegram data parse warn:", err);
+            }
+
+            // Developer Localhost Test Bypass
+            if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:") {
+                return { id: 77889900, first_name: "Tester", username: "ss_tester", photo_url: "" };
+            }
+
+            return null;
+        }
+
+        function triggerHaptic(type = "light") {
+            try {
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred(type);
+            } catch(e) {}
+        }
+
+        function retryAuth() {
+            location.reload();
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (tg) {
+                try {
+                    tg.ready();
+                    tg.expand();
+                    tg.setHeaderColor('#e2136e');
+                    tg.setBackgroundColor('#fffbfd');
+                } catch(e) {}
+            }
+
+            currentUser = extractTelegramUser();
+
+            if (!currentUser) {
+                document.getElementById('global-loader').style.display = 'none';
+                document.getElementById('auth-error-screen').classList.remove('hidden');
+                document.getElementById('auth-error-screen').classList.add('flex');
+                return;
+            } else {
+                sessionStorage.setItem("tg_cached_user", JSON.stringify(currentUser));
+            }
+
+            setupAntiCheat();
+            renderGateways();
+            await initAppEngine();
+        });
+
+        // DYNAMIC MONETAG SCRIPT INJECTION (ADMIN CONTROLLED)
+        function updateMonetagSdk(zoneId) {
+            if(!zoneId || currentMonetagZone === zoneId) return;
+            currentMonetagZone = zoneId;
+
+            const oldScript = document.getElementById('dynamic-monetag-script');
+            if (oldScript) oldScript.remove();
+
+            const script = document.createElement('script');
+            script.id = 'dynamic-monetag-script';
+            script.src = '//libtl.com/sdk.js';
+            script.setAttribute('data-zone', zoneId);
+            script.setAttribute('data-sdk', `show_${zoneId}`);
+            document.head.appendChild(script);
+        }
+
+        // ANTI-CHEAT ENGINE
+        function setupAntiCheat() {
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden && isAdWatching) {
+                    cancelAdWatch("ট্যাব বা স্ক্রিন পরিবর্তনের কারণে রিওয়ার্ড বাতিল করা হয়েছে!");
+                }
+            });
+            window.addEventListener("blur", () => {
+                if (isAdWatching) {
+                    cancelAdWatch("স্ক্রিন ফোকাস হারানোর কারণে রিওয়ার্ড বাতিল হয়েছে!");
+                }
+            });
+        }
+
+        function cancelAdWatch(msg) {
+            if (!isAdWatching) return;
+            isAdWatching = false;
+            clearInterval(adWatchTimer);
+            resetAdButton();
+            showToast(msg, "error");
+        }
+
+        function resetAdButton() {
+            const btn = document.getElementById('watch-ad-btn');
+            btn.disabled = false;
+            btn.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-xl bg-pink-600 text-white flex items-center justify-center text-sm"><i class="fa-solid fa-play"></i></div>
+                    <span class="font-bold text-xs">ভিডিও অ্যাড দেখুন (১৫ সেকেন্ড)</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-400 text-xs"></i>`;
+        }
+
+        // TELEGRAM BOT AUTO MESSAGING
+        async function sendBotMessage(chatId, text) {
+            if(!appSettings.botToken || !chatId) return;
+            try {
+                await fetch(`https://api.telegram.org/bot${appSettings.botToken}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' })
+                });
+            } catch(e) {}
+        }
+
+        // FIREBASE LIVE LISTENERS
+        async function initAppEngine() {
+            try {
+                // 1. Settings listener
+                db.collection('appConfig').doc('settings').onSnapshot(doc => {
+                    if (doc.exists) {
+                        appSettings = { ...appSettings, ...doc.data() };
+                        if (appSettings.monetagZoneId) updateMonetagSdk(appSettings.monetagZoneId);
+                        renderConfig();
+                    }
+                });
+
+                // 2. Dynamic Tasks Listener
+                db.collection('tasks').onSnapshot(snap => {
+                    tasksList = [];
+                    snap.forEach(d => tasksList.push({ id: d.id, ...d.data() }));
+                    renderTasks();
+                });
+
+                // 3. User Document Realtime Verification
+                const uRef = db.collection('users').doc(currentUser.id.toString());
+                const uDoc = await uRef.get();
+
+                if (!uDoc.exists) {
+                    await registerUser(uRef);
+                } else {
+                    checkDailyReset(uRef, uDoc.data());
+                }
+
+                uRef.onSnapshot(doc => {
+                    if(doc.exists) {
+                        userData = doc.data();
+                        updateUserUI(userData);
+                    }
+                });
+
+                // 4. User Withdraw History Listener
+                db.collection('withdrawals')
+                    .where('userId', '==', currentUser.id.toString())
+                    .onSnapshot(snap => {
+                        const historyContainer = document.getElementById('wallet-history-list');
+                        if (snap.empty) {
+                            historyContainer.innerHTML = `<p class="text-center text-xs text-slate-400 py-3">উত্তোলনের কোনো হিস্টোরি নেই</p>`;
+                            return;
+                        }
+                        historyContainer.innerHTML = '';
+                        snap.forEach(docSnap => {
+                            const w = docSnap.data();
+                            const div = document.createElement('div');
+                            div.className = "bg-white p-3 rounded-2xl border border-pink-100 flex items-center justify-between shadow-xs";
+                            div.innerHTML = `
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-xs font-bold text-slate-800">${w.method}</span>
+                                        <span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${w.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : (w.status === 'rejected' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600')}">${w.status === 'approved' ? 'পরিশোধিত' : (w.status === 'rejected' ? 'বাতিল' : 'পেন্ডিং')}</span>
+                                    </div>
+                                    <span class="text-[10px] text-slate-400 font-inter">${w.number}</span>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs font-black text-[#e2136e] font-inter">৳ ${parseFloat(w.amount).toFixed(2)}</p>
+                                    <span class="text-[9px] text-slate-400">প্রাপ্য: ৳${parseFloat(w.netAmount).toFixed(2)}</span>
+                                </div>
+                            `;
+                            historyContainer.appendChild(div);
+                        });
+                    });
+
+                checkPopupNotice();
+
+                setTimeout(() => {
+                    document.getElementById('global-loader').style.display = 'none';
+                    document.getElementById('app-container').classList.remove('hidden');
+                }, 500);
+
+            } catch(e) {
+                showToast("সার্ভার কানেকশন সমস্যা, পুনরায় চেষ্টা করুন", "error");
+            }
+        }
+
+        async function registerUser(uRef) {
+            const startParam = tg?.initDataUnsafe?.start_param || "";
+            let referrerId = null;
+            if (startParam && startParam.startsWith('ref_')) {
+                referrerId = startParam.split('_')[1];
+            }
+
+            const initData = {
+                id: currentUser.id,
+                username: currentUser.username || currentUser.first_name || "User",
+                balance: 0.00,
+                referralCount: 0,
+                totalIncome: 0.00,
+                dailyAdsWatched: 0,
+                totalAdsWatched: 0,
+                lastAdDate: new Date().toISOString().split('T')[0],
+                completedTasks: [],
+                referredBy: referrerId,
+                joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await db.runTransaction(async (t) => {
+                let refDoc = null;
+                if (referrerId && referrerId !== currentUser.id.toString()) {
+                    refDoc = await t.get(db.collection('users').doc(referrerId));
+                }
+
+                t.set(uRef, initData);
+
+                if (refDoc && refDoc.exists) {
+                    const bonus = parseFloat(appSettings.referralBonus || 5);
+                    const rData = refDoc.data();
+                    t.update(refDoc.ref, {
+                        balance: (rData.balance || 0) + bonus,
+                        referralCount: (rData.referralCount || 0) + 1,
+                        totalIncome: (rData.totalIncome || 0) + bonus
+                    });
+
+                    sendBotMessage(referrerId, `🎉 <b>নতুন রেফারেল বোনাস!</b>\n\n👤 ইউজার: @${currentUser.username || currentUser.first_name}\n💰 বোনাস: ৳ ${bonus.toFixed(2)} যুক্ত হয়েছে!`);
+                }
+            });
+        }
+
+        function checkDailyReset(ref, data) {
+            const today = new Date().toISOString().split('T')[0];
+            if (data.lastAdDate !== today) {
+                ref.update({ 
+                    dailyAdsWatched: 0, 
+                    lastAdDate: today 
+                });
+            }
+        }
+
+        function renderConfig() {
+            document.getElementById('ads-limit-count').innerText = appSettings.dailyAdLimit;
+            document.getElementById('ad-single-reward').innerText = parseFloat(appSettings.adReward).toFixed(2);
+            document.getElementById('ref-bonus-display').innerText = appSettings.referralBonus;
+            document.getElementById('min-withdraw-label').innerText = appSettings.minWithdraw;
+            document.getElementById('charge-label').innerText = `সার্ভিস ফি: ${appSettings.withdrawFeePercent}%`;
+            document.getElementById('profile-support-btn').href = appSettings.helpLink || "#";
+
+            const iframe = document.getElementById('guide-video-frame');
+            if(iframe && appSettings.guideVideoUrl) {
+                const embed = getEmbedUrl(appSettings.guideVideoUrl);
+                if (iframe.src !== embed) iframe.src = embed;
+            }
+
+            const rulesBox = document.getElementById('admin-rules-content');
+            if(rulesBox) {
+                rulesBox.innerHTML = (appSettings.howToEarnText || "").split('\n').map(line => `<p>${line}</p>`).join('');
+            }
+        }
+
+        function updateUserUI(data) {
+            const bal = parseFloat(data.balance || 0).toFixed(2);
+            document.getElementById('header-balance').innerText = bal;
+            document.getElementById('home-balance').innerText = bal;
+            document.getElementById('wallet-balance').innerText = bal;
+            document.getElementById('stat-total-income').innerText = parseFloat(data.totalIncome || 0).toFixed(2);
+            
+            document.getElementById('header-username').innerText = data.username || "User";
+            document.getElementById('profile-user-name').innerText = data.username || currentUser.first_name;
+            document.getElementById('profile-user-id').innerText = data.id;
+
+            if(currentUser?.photo_url) {
+                document.getElementById('user-avatar').src = currentUser.photo_url;
+                document.getElementById('profile-img').src = currentUser.photo_url;
+            }
+
+            document.getElementById('stat-referrals').innerText = data.referralCount || 0;
+            document.getElementById('stat-profile-refs').innerText = data.referralCount || 0;
+            document.getElementById('ads-done-count').innerText = data.dailyAdsWatched || 0;
+            document.getElementById('stat-total-ads').innerText = data.totalAdsWatched || 0;
+
+            const link = `https://t.me/${BOT_USERNAME}/${BOT_APP_NAME}?startapp=ref_${currentUser.id}`;
+            document.getElementById('home-ref-link').innerText = link;
+
+            renderTasks();
+        }
+
+        // SECURE TIMER AD WATCH (WITH ADMIN ZONE/LINK SUPPORT)
+        function startSecureAdWatch() {
+            triggerHaptic('medium');
+            if ((userData.dailyAdsWatched || 0) >= (appSettings.dailyAdLimit || 50)) {
+                return showToast("আজকের অ্যাড সীমা শেষ!", "error");
+            }
+
+            const btn = document.getElementById('watch-ad-btn');
+            btn.disabled = true;
+            isAdWatching = true;
+            adSecondsLeft = 15;
+
+            // Trigger Monetag Ad SDK or Direct Monetag SmartLink
+            if (appSettings.adLink) {
+                tg ? tg.openLink(appSettings.adLink) : window.open(appSettings.adLink, '_blank');
+            } else {
+                const zone = appSettings.monetagZoneId || "10487556";
+                const showFunc = window[`show_${zone}`];
+                if (typeof showFunc === 'function') {
+                    showFunc().catch(() => {});
+                }
+            }
+
+            btn.innerHTML = `<span class="text-pink-400 font-bold text-xs mx-auto animate-pulse">অপেক্ষা করুন... (${adSecondsLeft}s)</span>`;
+
+            adWatchTimer = setInterval(() => {
+                adSecondsLeft--;
+                btn.innerHTML = `<span class="text-pink-400 font-bold text-xs mx-auto animate-pulse">অপেক্ষা করুন... (${adSecondsLeft}s)</span>`;
+
+                if (adSecondsLeft <= 0) {
+                    clearInterval(adWatchTimer);
+                    isAdWatching = false;
+                    creditAdReward();
+                }
+            }, 1000);
+        }
+
+        async function creditAdReward() {
+            const btn = document.getElementById('watch-ad-btn');
+            btn.innerHTML = `<span class="text-xs mx-auto"><i class="fa-solid fa-spinner fa-spin"></i> রিওয়ার্ড জমা হচ্ছে...</span>`;
+
+            try {
+                await db.runTransaction(async (t) => {
+                    const uRef = db.collection('users').doc(currentUser.id.toString());
+                    const doc = await t.get(uRef);
+                    const d = doc.data();
+
+                    const rew = parseFloat(appSettings.adReward || 0.50);
+                    t.update(uRef, {
+                        balance: (d.balance || 0) + rew,
+                        dailyAdsWatched: (d.dailyAdsWatched || 0) + 1,
+                        totalAdsWatched: (d.totalAdsWatched || 0) + 1,
+                        totalIncome: (d.totalIncome || 0) + rew
+                    });
+                });
+                showToast(`+৳${appSettings.adReward} টাকা ব্যালেন্সে যুক্ত হয়েছে!`, "success");
+            } catch (e) {
+                showToast("রিওয়ার্ড প্রক্রিয়া ব্যর্থ হয়েছে", "error");
+            } finally {
+                resetAdButton();
+            }
+        }
+
+        // TASKS SYSTEM
+        function renderTasks() {
+            const container = document.getElementById('dynamic-tasks-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const completed = userData.completedTasks || [];
+            const activeTasks = tasksList.filter(t => !completed.includes(t.id));
+
+            if (activeTasks.length === 0) {
+                container.innerHTML = `<p class="text-center text-xs text-slate-400 py-4">বর্তমানে কোনো টাস্ক খালি নেই</p>`;
+                return;
+            }
+
+            activeTasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = "glass p-4 rounded-2xl flex items-center justify-between border border-pink-50 shadow-sm";
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <img src="${task.icon || 'https://cdn-icons-png.flaticon.com/512/2098/2098402.png'}" class="w-10 h-10 rounded-xl object-contain bg-pink-50 p-1 border border-pink-100">
+                        <div>
+                            <h4 class="font-bold text-xs text-slate-800 line-clamp-1">${task.title}</h4>
+                            <p class="text-[11px] text-[#e2136e] font-black font-inter">+৳ ${parseFloat(task.reward).toFixed(2)}</p>
+                        </div>
+                    </div>
+                    <button onclick="doTask('${task.id}', '${task.link}', ${task.reward})" class="bg-[#e2136e] text-white text-[11px] font-bold px-4 py-2 rounded-xl btn-press shadow">
+                        শুরু করুন
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function doTask(taskId, link, reward) {
+            triggerHaptic('medium');
+            tg ? tg.openLink(link) : window.open(link, '_blank');
+            showToast("টাস্ক যাচাই করা হচ্ছে, অনুগ্রহ করে ৫ সেকেন্ড অপেক্ষা করুন...", "info");
+
+            setTimeout(async () => {
+                try {
+                    await db.runTransaction(async (t) => {
+                        const uRef = db.collection('users').doc(currentUser.id.toString());
+                        const doc = await t.get(uRef);
+                        const d = doc.data();
+
+                        if (d.completedTasks && d.completedTasks.includes(taskId)) throw "Done";
+
+                        t.update(uRef, {
+                            balance: (d.balance || 0) + parseFloat(reward),
+                            totalIncome: (d.totalIncome || 0) + parseFloat(reward),
+                            completedTasks: [...(d.completedTasks || []), taskId]
+                        });
+                    });
+                    showToast(`টাস্ক সফল! +৳${reward} যুক্ত হয়েছে`, "success");
+                } catch(e) {}
+            }, 5000);
+        }
+
+        // ORIGINAL PAYMENT GATEWAYS WITH SVGS
+        function renderGateways() {
+            const grid = document.getElementById('gateways-grid');
+            grid.innerHTML = '';
+
+            activePaymentGateways.forEach((m, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `gateway-card border border-pink-100 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 bg-white transition ${idx === 0 ? 'selected' : ''}`;
+                btn.onclick = () => selectGateway(btn, m);
+                btn.innerHTML = `
+                    <div class="h-7 flex items-center justify-center">${m.svg}</div>
+                    <span class="text-[11px] font-bold text-slate-700">${m.name}</span>
+                `;
+                grid.appendChild(btn);
+
+                if (idx === 0) selectGateway(btn, m);
+            });
+        }
+
+        function selectGateway(elem, method) {
+            document.querySelectorAll('.gateway-card').forEach(b => b.classList.remove('selected'));
+            elem.classList.add('selected');
+            document.getElementById('selected-payment-method').value = method.name;
+            document.getElementById('account-field-label').innerText = `${method.name} পার্সোনাল নাম্বার`;
+            document.getElementById('withdraw-account-input').placeholder = method.placeholder;
+        }
+
+        function calculateWithdrawNet() {
+            const amt = parseFloat(document.getElementById('withdraw-amount-input').value) || 0;
+            const feePercent = parseFloat(appSettings.withdrawFeePercent || 10);
+            const fee = (amt * feePercent) / 100;
+            const net = Math.max(0, amt - fee);
+            document.getElementById('net-receive-label').innerText = `আপনি পাবেন: ৳${net.toFixed(2)}`;
+        }
+
+        async function submitWithdrawal() {
+            triggerHaptic('medium');
+            const amount = parseFloat(document.getElementById('withdraw-amount-input').value);
+            const number = document.getElementById('withdraw-account-input').value.trim();
+            const method = document.getElementById('selected-payment-method').value;
+            const minW = parseFloat(appSettings.minWithdraw || 50);
+
+            if (!amount || amount < minW) return showToast(`সর্বনিম্ন উত্তোলন ৳ ${minW}`, "error");
+            if (amount > (userData.balance || 0)) return showToast("পর্যাপ্ত ব্যালেন্স নেই!", "error");
+            if (!number || number.length < 11) return showToast("সঠিক মোবাইল নাম্বার দিন", "error");
+
+            const fee = (amount * parseFloat(appSettings.withdrawFeePercent || 10)) / 100;
+            const net = amount - fee;
+            const txnId = "TXN" + Math.random().toString(36).substr(2, 7).toUpperCase();
+
+            try {
+                await db.runTransaction(async (t) => {
+                    const uRef = db.collection('users').doc(currentUser.id.toString());
+                    const doc = await t.get(uRef);
+                    if (doc.data().balance < amount) throw "Low Balance";
+
+                    t.update(uRef, { balance: doc.data().balance - amount });
+
+                    t.set(db.collection('withdrawals').doc(), {
+                        txnId: txnId,
+                        userId: currentUser.id.toString(),
+                        username: userData.username || currentUser.first_name,
+                        amount: amount,
+                        fee: fee,
+                        netAmount: net,
+                        method: method,
+                        number: number,
+                        status: 'pending',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+
+                showToast("উইথড্র রিকোয়েস্ট সফলভাবে গৃহীত হয়েছে!", "success");
+                document.getElementById('withdraw-amount-input').value = "";
+                document.getElementById('withdraw-account-input').value = "";
+                
+                sendBotMessage(currentUser.id, `📤 <b>উইথড্র রিকোয়েস্ট সফল!</b>\n\n🆔 <b>TXN:</b> <code>${txnId}</code>\n💵 <b>পরিমাণ:</b> ৳ ${amount.toFixed(2)}\n💸 <b>ফি:</b> ৳ ${fee.toFixed(2)}\n🎁 <b>প্রাপ্য:</b> ৳ ${net.toFixed(2)}\n💳 <b>মেথড:</b> ${method}\n📱 <b>নাম্বার:</b> ${number}\n\n<i>দ্রুত পেমেন্ট সম্পন্ন করা হবে। ধন্যবাদ!</i>`);
+
+            } catch(e) {
+                showToast("উইথড্র রিকোয়েস্ট ব্যর্থ হয়েছে", "error");
+            }
+        }
+
+        // POPUP NOTICE
+        async function checkPopupNotice() {
+            try {
+                const snap = await db.collection('notices').orderBy('date', 'desc').limit(1).get();
+                if (snap.empty) return;
+
+                const notice = snap.docs[0].data();
+                const noticeId = snap.docs[0].id;
+                const seenId = localStorage.getItem('seen_notice_id');
+
+                if (seenId !== noticeId) {
+                    document.getElementById('popup-notice-title').innerText = notice.title || "জরুরী নোটিশ";
+                    document.getElementById('popup-notice-body').innerText = notice.message || "";
+                    
+                    const vidBtn = document.getElementById('popup-notice-video-btn');
+                    if (notice.videoLink) {
+                        vidBtn.href = notice.videoLink;
+                        vidBtn.classList.remove('hidden');
+                    } else {
+                        vidBtn.classList.add('hidden');
+                    }
+
+                    document.getElementById('notice-modal').classList.remove('hidden');
+                    localStorage.setItem('seen_notice_id', noticeId);
+                }
+            } catch(e) {}
+        }
+
+        function closeNoticeModal() {
+            document.getElementById('notice-modal').classList.add('hidden');
+        }
+
+        // NAVIGATION & UTILS
+        function switchTab(tabId) {
+            triggerHaptic('light');
+            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                if(btn.dataset.target === tabId) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            document.getElementById('main-content').scrollTop = 0;
+        }
+
+        function copyRefLink() {
+            triggerHaptic('medium');
+            const link = document.getElementById('home-ref-link').innerText;
+            navigator.clipboard.writeText(link);
+            showToast("রেফারেল লিংক কপি হয়েছে!", "success");
+        }
+
+        function showToast(msg, type = "success") {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            const icon = document.getElementById('toast-icon');
+            icon.className = type === 'error' ? 'fa-solid fa-circle-xmark text-rose-400' : 'fa-solid fa-circle-check text-pink-400';
+            t.style.top = '25px';
+            setTimeout(() => t.style.top = '-60px', 3000);
+        }
+    </script>
+</body>
+</html>
